@@ -19,19 +19,19 @@ int main(int argc, char *argv[]) {
   unsigned short port{8888};
   sf::TcpListener listener;
   sf::SocketSelector l_selector;
-  l_selector.add(listener);
   sf::SocketSelector selector;
   std::vector<socket_ptr> clients;
 
-  // std::cout << "INFO: Listening to incoming connections...\n";
+  std::cout << "INFO: Listening to incoming connections...\n";
   auto s = listener.listen(port);
   if (s == sf::Socket::Status::Error) {
     err();
   }
+  l_selector.add(listener);
+
   while (true) {
   accept:
-    if (l_selector.wait()) {
-      std::cout << "INFO: Accepting client connection...\n";
+    if (l_selector.wait(sf::seconds(0.1f))) {
       clients.push_back(std::make_shared<sf::TcpSocket>());
       socket_ptr client = clients.back();
       s = listener.accept(*client);
@@ -42,19 +42,13 @@ int main(int argc, char *argv[]) {
       std::cout << "INFO: Client " << client->getRemoteAddress().toString()
                 << ":" << client->getRemotePort() << " connected...\n";
 
-      // std::cout << "INFO: Added Client: " << clients.size() << "\n";
       selector.add(*client);
-    } else {
-      std::cout << "INFO: Waiting for client connection...\r";
     }
 
-    if (selector.wait()) {
+    if (selector.wait(sf::seconds(0.1f))) {
       for (int i = 0; i < clients.size(); ++i) {
         auto &c = clients[i];
         if (selector.isReady(*c)) {
-          // std::cout << "INFO: Waiting to receive packet from Client "
-          //           << client->getRemoteAddress().toString() << ":"
-          //           << client->getRemotePort() << "...\n";
 
           std::string receive_packet;
           receive_packet.resize(MAX_PACKET_SIZE);
@@ -67,10 +61,9 @@ int main(int argc, char *argv[]) {
           } else if (s == sf::Socket::Status::Disconnected) {
             std::cout << "INFO: Client " << c->getRemoteAddress().toString()
                       << ":" << c->getRemotePort() << " disconnected...\n";
+            selector.remove(*c);
             c->disconnect();
             clients.erase(clients.begin() + i);
-            selector.remove(*c);
-            selector.clear();
             goto accept;
           }
           receive_packet.resize(received);
