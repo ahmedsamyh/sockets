@@ -72,6 +72,11 @@ int main(int argc, char *argv[]) {
           if (c.name == "NO_NAME") {
             c.name = receive_packet;
             std::cout << "INFO: " << c.name << " connected...\n";
+            std::string send_packet{"Successfully connected to server"};
+            s = c.socket->send(send_packet.c_str(), send_packet.size());
+            if (s == sf::Socket::Status::Error) {
+              err();
+            }
           } else {
             // send message to other clients
             for (auto &other : clients) {

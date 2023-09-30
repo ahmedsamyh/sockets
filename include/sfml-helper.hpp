@@ -388,7 +388,7 @@ struct Data {
                    sf::Color out_col = sf::Color::White, float out_thic = 1);
   sf::Vector2f draw_text(const sf::Vector2f &pos, const std::string &str,
                          const Align &align = Align::TopLeft,
-                         int character_size = 16,
+                         int character_size = DEFAULT_CHAR_SIZE,
                          sf::Color fill_col = sf::Color::White,
                          sf::Color out_col = sf::Color::White,
                          float out_thic = 0.f);
