@@ -13,7 +13,6 @@ void err() {
 
 int main(int argc, char *argv[]) {
   //
-
   unsigned short port{8888};
   sf::IpAddress ip{"127.0.0.1"};
   sf::TcpSocket server;
@@ -21,14 +20,13 @@ int main(int argc, char *argv[]) {
   std::string name{""};
 
   // graphical display things
-  std::string server_buf{};
+  std::string chat_log{};
   std::string current_buf{};
   enum State {
     Port_ip_writing,
     Connect_to_server,
     Name_writing,
     Lobby,
-    Chatting,
     Send_name_to_server
   };
   State state{State::Port_ip_writing};
@@ -66,7 +64,7 @@ int main(int argc, char *argv[]) {
         d.handle_text(e, port_ip_str);
       } else if (state == State::Name_writing) {
         d.handle_text(e, name);
-      } else if (state == State::Chatting) {
+      } else if (state == State::Lobby) {
         d.handle_text(e, current_buf);
       }
     }
@@ -108,28 +106,19 @@ int main(int argc, char *argv[]) {
 
     case State::Send_name_to_server: {
       send_packet = name;
-      s = server.send(send_packet.c_str(), send_packet.size());
 
+      VAR(send_packet);
+      s = server.send(send_packet.c_str(), send_packet.size());
       if (s == sf::Socket::Status::Error) {
         err();
-      } else if (s == sf::Socket::Status::NotReady) {
-        std::cout << "INFO: Server busy...\n";
-        return 0;
       }
       state = State::Lobby;
     } break;
 
-    case State::Chatting: {
-      if (d.k_pressed(Key::Enter)) {
-        state = State::Lobby;
-        send_packet = current_buf;
-        current_buf.clear();
-      }
-    } break;
-
     case State::Lobby: {
       if (d.k_pressed(Key::Enter)) {
-        state = State::Chatting;
+        send_packet = current_buf;
+        current_buf.clear();
       }
       if (selector.wait(sf::seconds(0.01f))) {
         if (selector.isReady(server)) {
@@ -142,14 +131,11 @@ int main(int argc, char *argv[]) {
           }
           receive_packet.resize(received);
 
-          server_buf += fmt("SERVER: {}\n", receive_packet);
+          chat_log += receive_packet + '\n';
           std::cout << "SERVER: " << receive_packet << "\n";
         }
       }
 
-      if (d.k_pressed(Key::Space)) {
-        send_packet = "Hi!!!";
-      }
       if (!send_packet.empty()) {
         s = server.send(send_packet.c_str(), send_packet.size());
         send_packet.clear();
@@ -198,24 +184,19 @@ int main(int argc, char *argv[]) {
       d.draw_text(d.ss() / 2.f, "Sending name to server...", CenterCenter);
     } break;
 
-    case State::Chatting: {
-      ui.begin({d.width / 2.f, 0.f});
-
-      ui.text("Chatting", TopCenter, 24);
-
-      ui.spacing({0.f, DEFAULT_CHAR_SIZE * 4.f});
-      ui.text(fmt("Send: {}", current_buf), TopCenter);
-
-      ui.end();
-    } break;
-
     case State::Lobby: {
       ui.begin({d.width / 2.f, 0.f});
 
       ui.text("Lobby", TopCenter, 24);
 
       ui.spacing({0.f, DEFAULT_CHAR_SIZE * 4.f});
-      ui.text(server_buf, TopCenter);
+      ui.text(chat_log, TopCenter);
+
+      ui.end();
+      // ----------
+      ui.begin({d.width / 2.f, d.height - DEFAULT_CHAR_SIZE * 2.f});
+
+      ui.text(fmt("{}: {}", name, current_buf), TopCenter);
 
       ui.end();
     } break;

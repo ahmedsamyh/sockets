@@ -72,20 +72,13 @@ int main(int argc, char *argv[]) {
           if (c.name == "NO_NAME") {
             c.name = receive_packet;
             std::cout << "INFO: " << c.name << " connected...\n";
-            std::string send_packet{"Successfully connected to server"};
-            s = c.socket->send(send_packet.c_str(), send_packet.size());
-            if (s == sf::Socket::Status::Error) {
-              err();
-            }
           } else {
-            // send message to other clients
+            // send chat log to all clients
             for (auto &other : clients) {
-              if (other.name != c.name) {
-                std::string send_packet = receive_packet;
-                s = other.socket->send(send_packet.c_str(), send_packet.size());
-                if (s == sf::Socket::Status::Error) {
-                  err();
-                }
+              std::string send_packet = fmt("{}: {}", c.name, receive_packet);
+              s = other.socket->send(send_packet.c_str(), send_packet.size());
+              if (s == sf::Socket::Status::Error) {
+                err();
               }
             }
 
