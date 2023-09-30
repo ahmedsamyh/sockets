@@ -60,31 +60,10 @@ int main(int argc, char *argv[]) {
       d.handle_close(e);
       d.update_mouse_event(e);
       d.update_key_event(e);
-      if (e.type == sf::Event::TextEntered) {
-        if (state == State::Name_writing) {
-          if (e.text.unicode == 8) { // backspace
-            if (!name.empty())
-              name.pop_back();
-          } else if (e.text.unicode == 127) { // ctrl+backspace
-
-            if (!name.empty()) {
-              size_t last_space = name.find_last_of(' ');
-              // name.remove_suffix();
-            }
-
-          } else if (32 <= e.text.unicode &&
-                     e.text.unicode < 127) { // only  ascii supported yet
-            name.push_back((char)e.text.unicode);
-          }
-        } else if (state == State::Chatting) {
-          if (e.text.unicode == 8) { // backspace
-            if (!current_buf.empty())
-              current_buf.pop_back();
-          } else if (32 <= e.text.unicode &&
-                     e.text.unicode <= 127) { // only  ascii supported yet
-            current_buf.push_back((char)e.text.unicode);
-          }
-        }
+      if (state == State::Name_writing) {
+        d.handle_text(e, name);
+      } else if (state == State::Chatting) {
+        d.handle_text(e, current_buf);
       }
     }
 
