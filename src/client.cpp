@@ -1,7 +1,6 @@
 #define SFML_HELPER_IMPLEMENTATION
 #include <sfml-helper.hpp>
 
-// TODO: Handle ctrl+backspace on text entering
 // TODO: User friendly text input
 // TODO: Make the user be able to change the port and ip address
 // TODO: Make a chat_buf instead and pushing other user's messages to server_buf
