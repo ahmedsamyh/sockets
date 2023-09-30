@@ -1,6 +1,11 @@
 #define SFML_HELPER_IMPLEMENTATION
 #include <sfml-helper.hpp>
 
+// TODO: Handle ctrl+backspace on text entering
+// TODO: User friendly text input
+// TODO: Make the user be able to change the port and ip address
+// TODO: Make a chat_buf instead and pushing other user's messages to server_buf
+
 #define MAX_PACKET_SIZE 1024 * 5
 
 void err() {
@@ -18,7 +23,8 @@ int main(int argc, char *argv[]) {
 
   // graphical display things
   std::string server_buf{};
-  enum State { Name_writing, Chatting, Send_name_to_server };
+  std::string current_buf{};
+  enum State { Name_writing, Lobby, Chatting, Send_name_to_server };
   State state{State::Name_writing};
 
   sf::IpAddress ip{"127.0.0.1"};
@@ -59,9 +65,24 @@ int main(int argc, char *argv[]) {
           if (e.text.unicode == 8) { // backspace
             if (!name.empty())
               name.pop_back();
+          } else if (e.text.unicode == 127) { // ctrl+backspace
+
+            if (!name.empty()) {
+              size_t last_space = name.find_last_of(' ');
+              // name.remove_suffix();
+            }
+
+          } else if (32 <= e.text.unicode &&
+                     e.text.unicode < 127) { // only  ascii supported yet
+            name.push_back((char)e.text.unicode);
+          }
+        } else if (state == State::Chatting) {
+          if (e.text.unicode == 8) { // backspace
+            if (!current_buf.empty())
+              current_buf.pop_back();
           } else if (32 <= e.text.unicode &&
                      e.text.unicode <= 127) { // only  ascii supported yet
-            name.push_back((char)e.text.unicode);
+            current_buf.push_back((char)e.text.unicode);
           }
         }
       }
@@ -88,10 +109,21 @@ int main(int argc, char *argv[]) {
         std::cout << "INFO: Server busy...\n";
         return 0;
       }
-      state = State::Chatting;
+      state = State::Lobby;
     } break;
 
     case State::Chatting: {
+      if (d.k_pressed(Key::Enter)) {
+        state = State::Lobby;
+        send_packet = current_buf;
+        current_buf.clear();
+      }
+    } break;
+
+    case State::Lobby: {
+      if (d.k_pressed(Key::Enter)) {
+        state = State::Chatting;
+      }
       if (selector.wait(sf::seconds(0.01f))) {
         if (selector.isReady(server)) {
           receive_packet.resize(MAX_PACKET_SIZE);
@@ -108,12 +140,12 @@ int main(int argc, char *argv[]) {
         }
       }
 
-      send_packet.clear();
       if (d.k_pressed(Key::Space)) {
         send_packet = "Hi!!!";
       }
       if (!send_packet.empty()) {
         s = server.send(send_packet.c_str(), send_packet.size());
+        send_packet.clear();
         if (s == sf::Socket::Status::Error) {
           err();
         }
@@ -145,6 +177,17 @@ int main(int argc, char *argv[]) {
       ui.begin({d.width / 2.f, 0.f});
 
       ui.text("Chatting", TopCenter, 24);
+
+      ui.spacing({0.f, DEFAULT_CHAR_SIZE * 4.f});
+      ui.text(fmt("Send: {}", current_buf), TopCenter);
+
+      ui.end();
+    } break;
+
+    case State::Lobby: {
+      ui.begin({d.width / 2.f, 0.f});
+
+      ui.text("Lobby", TopCenter, 24);
 
       ui.spacing({0.f, DEFAULT_CHAR_SIZE * 4.f});
       ui.text(server_buf, TopCenter);
