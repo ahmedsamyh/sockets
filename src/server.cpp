@@ -1,6 +1,8 @@
 #define SFML_HELPER_IMPLEMENTATION
 #include <sfml-helper.hpp>
 
+// TODO: Fix bug where sometimes the name comes as double like `momoyonmomoyon`
+
 #include <memory>
 
 #define MAX_PACKET_SIZE 1024 * 5
@@ -58,6 +60,7 @@ int main(int argc, char *argv[]) {
 
           s = c.socket->receive((void *)receive_packet.c_str(), MAX_PACKET_SIZE,
                                 received);
+
           if (s == sf::Socket::Status::Error) {
             err();
           } else if (s == sf::Socket::Status::Disconnected) {
@@ -72,10 +75,16 @@ int main(int argc, char *argv[]) {
           if (c.name == "NO_NAME") {
             c.name = receive_packet;
             std::cout << "INFO: " << c.name << " connected...\n";
+            std::string send_packet = FMT("{}: connected...", c.name);
+            s = c.socket->send(send_packet.c_str(), send_packet.size());
+            if (s == sf::Socket::Status::Error) {
+              err();
+            }
+
           } else {
             // send chat log to all clients
             for (auto &other : clients) {
-              std::string send_packet = fmt("{}: {}", c.name, receive_packet);
+              std::string send_packet = FMT("{}: {}", c.name, receive_packet);
               s = other.socket->send(send_packet.c_str(), send_packet.size());
               if (s == sf::Socket::Status::Error) {
                 err();

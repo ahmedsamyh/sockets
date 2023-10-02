@@ -1,6 +1,8 @@
 #define SFML_HELPER_IMPLEMENTATION
 #include <sfml-helper.hpp>
 
+using namespace sh;
+
 // TODO: User friendly text input
 // TODO: Make a chat_buf instead and pushing other user's messages to server_buf
 
@@ -196,7 +198,7 @@ int main(int argc, char *argv[]) {
       // ----------
       ui.begin({d.width / 2.f, d.height - DEFAULT_CHAR_SIZE * 2.f});
 
-      ui.text(fmt("{}: {}", name, current_buf), TopCenter);
+      ui.text(FMT("{}: {}", name, current_buf), TopCenter);
 
       ui.end();
     } break;
