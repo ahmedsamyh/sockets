@@ -215,7 +215,8 @@ int main(int argc, char *argv[]) {
           }
           receive_packet.resize(received);
 
-          if (receive_packet.find(':') != std::string::npos) {
+          if (receive_packet != FMT("{}: Verify 1,{}", name, name) &&
+              receive_packet != FMT("{}: Verify 2,{}", name, name)) {
             chat_log += receive_packet + '\n';
           }
         }

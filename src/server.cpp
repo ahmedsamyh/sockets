@@ -25,6 +25,7 @@ struct Client {
   // Server sends "Verify 2 Success"
   // Client is connected
   bool verified[2]{false, false};
+  bool is_verified() const { return verified[0] && verified[1]; }
 };
 
 int main(int argc, char *argv[]) {
@@ -130,7 +131,9 @@ int main(int argc, char *argv[]) {
             }
             c.verified[1] = true;
             print("INFO: Client {} connected successfully!\n", c.name);
-          } else {
+          }
+
+          if (c.is_verified()) {
             // send chat log to all clients
             for (auto &other : clients) {
               std::string send_packet = FMT("{}: {}", c.name, receive_packet);
