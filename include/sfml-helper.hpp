@@ -451,7 +451,12 @@ struct Data {
   float calc_delta();
   void update_title();
   int default_char_size() const;
-  void handle_text(const sf::Event &e, std::string &buf);
+  void handle_text(const sf::Event &e, std::string &buf, bool nl = true,
+                   bool space = true);
+  void handle_numbers(const sf::Event &e, std::string &buf, bool nl = true,
+                      bool space = true);
+  void handle_ipv4(const sf::Event &e, std::string &buf, bool nl = true,
+                   bool space = true);
 
   // view functions
   void camera_follow(const sf::Vector2f &pos, float rate = 1.f);
@@ -1464,7 +1469,8 @@ int Data::default_char_size() const {
   return DEFAULT_CHAR_SIZE / scale;
 }
 
-void Data::handle_text(const sf::Event &e, std::string &buf) {
+void Data::handle_text(const sf::Event &e, std::string &buf, bool nl,
+                       bool space) {
   if (e.type == sf::Event::TextEntered) {
     auto &code = e.text.unicode;
     if (code == 8) { // backspace
@@ -1482,9 +1488,68 @@ void Data::handle_text(const sf::Event &e, std::string &buf) {
         buf = buf.substr(0, delim_pos);
       }
 
-    } else if (code == 10) { // ctrl+enter {10, linefeed}
+    } else if (nl && code == 10) { // ctrl+enter {10, linefeed}
       buf.push_back('\n');
-    } else if (32 <= code && code < 127) {
+    } else if (space && code == 32) { // space
+      buf.push_back(code);
+    } else if (32 < code && code < 127) { // ascii
+      buf.push_back(code);
+    }
+  }
+}
+
+void Data::handle_numbers(const sf::Event &e, std::string &buf, bool nl,
+                          bool space) {
+  if (e.type == sf::Event::TextEntered) {
+    auto &code = e.text.unicode;
+    if (code == 8) { // backspace
+      if (!buf.empty())
+        buf.pop_back();
+    } else if (code == 127) { // ctrl+backspace
+      if (!buf.empty()) {
+        auto isspace_or_underscore = [&](const char &ch) {
+          return std::isspace(ch) || ch == '_';
+        };
+        size_t delim_pos = buf.size() - 1;
+        while (delim_pos > 0 && !isspace_or_underscore(buf[delim_pos])) {
+          delim_pos--;
+        }
+        buf = buf.substr(0, delim_pos);
+      }
+    } else if (nl && code == 10) { // ctrl+enter {10, linefeed}
+      buf.push_back('\n');
+    } else if (space && code == 32) { // space
+      buf.push_back(code);
+    } else if (48 <= code && code <= 57) { // 0..9
+      buf.push_back(code);
+    }
+  }
+}
+
+void Data::handle_ipv4(const sf::Event &e, std::string &buf, bool nl,
+                       bool space) {
+  if (e.type == sf::Event::TextEntered) {
+    auto &code = e.text.unicode;
+    if (code == 8) { // backspace
+      if (!buf.empty())
+        buf.pop_back();
+    } else if (code == 127) { // ctrl+backspace
+      if (!buf.empty()) {
+        auto isspace_or_underscore = [&](const char &ch) {
+          return std::isspace(ch) || ch == '_';
+        };
+        size_t delim_pos = buf.size() - 1;
+        while (delim_pos > 0 && !isspace_or_underscore(buf[delim_pos])) {
+          delim_pos--;
+        }
+        buf = buf.substr(0, delim_pos);
+      }
+    } else if (nl && code == 10) { // ctrl+enter {10, linefeed}
+      buf.push_back('\n');
+    } else if (space && code == 32) { // space
+      buf.push_back(code);
+    } else if (48 <= code && code <= 57 || code == 58 ||
+               code == 46) { // 0..9, :, .
       buf.push_back(code);
     }
   }

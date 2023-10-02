@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
       d.update_mouse_event(e);
       d.update_key_event(e);
       if (state == State::Port_ip_writing) {
-        d.handle_text(e, port_ip_str);
+        d.handle_ipv4(e, port_ip_str);
       } else if (state == State::Name_writing) {
         d.handle_text(e, name);
       } else if (state == State::Lobby) {
@@ -79,7 +79,16 @@ int main(int argc, char *argv[]) {
     switch (state) {
     case State::Port_ip_writing: {
       if (d.k_held(Key::LControl) && d.k_pressed(Key::V)) {
-        port_ip_str += static_cast<std::string>(sf::Clipboard::getString());
+        std::string clip = static_cast<std::string>(sf::Clipboard::getString());
+        bool safe = true;
+        for (size_t i = 0; i < clip.size(); ++i) {
+          if (!std::isdigit(clip[i]) && !(clip[i] == ':') &&
+              !(clip[i] == '.')) {
+            safe = false;
+          }
+        }
+        if (safe)
+          port_ip_str += clip;
       }
       if (d.k_pressed(Key::Enter) && !port_ip_str.empty()) {
         size_t colon_p = port_ip_str.find_last_of(':') + 1;
