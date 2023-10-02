@@ -1,7 +1,7 @@
 #define SFML_HELPER_IMPLEMENTATION
 #include <sfml-helper.hpp>
 
-// TODO: Fix bug where sometimes the name comes as double like `momoyonmomoyon`
+using namespace sh;
 
 #include <memory>
 
@@ -17,6 +17,14 @@ void err() {
 struct Client {
   std::string name;
   socket_ptr socket;
+  // Verify step:
+  // Client connects to server
+  // Client responds "Verify 1,{NAME}"
+  // Server sends "Verify 1 Success"
+  // Client responds "Verify 2,{NAME}"
+  // Server sends "Verify 2 Success"
+  // Client is connected
+  bool verified[2]{false, false};
 };
 
 int main(int argc, char *argv[]) {
@@ -29,17 +37,18 @@ int main(int argc, char *argv[]) {
   sf::SocketSelector selector;
   std::vector<Client> clients;
 
-  std::cout << "INFO: Listening to incoming connections...\n";
   auto s = listener.listen(port);
   if (s == sf::Socket::Status::Error) {
     err();
   }
   l_selector.add(listener);
 
+  std::cout << "INFO: Server started...\n";
   while (true) {
   accept:
+    // accept clients
     if (l_selector.wait(sf::seconds(0.1f))) {
-      clients.push_back({"NO_NAME", std::make_shared<sf::TcpSocket>()});
+      clients.push_back({"", std::make_shared<sf::TcpSocket>()});
       Client &client = clients.back();
       s = listener.accept(*client.socket);
       if (s == sf::Socket::Status::Error) {
@@ -47,13 +56,14 @@ int main(int argc, char *argv[]) {
       }
 
       selector.add(*client.socket);
+      print("INFO: Client is trying to connect...\n");
     }
 
-    if (selector.wait(sf::seconds(0.1f))) {
+    // receive/send to connected clients
+    if (selector.wait(sf::seconds(0.01f))) {
       for (int i = 0; i < clients.size(); ++i) {
         auto &c = clients[i];
         if (selector.isReady(*c.socket)) {
-
           std::string receive_packet;
           receive_packet.resize(MAX_PACKET_SIZE);
           size_t received{0};
@@ -72,15 +82,54 @@ int main(int argc, char *argv[]) {
           }
           receive_packet.resize(received);
 
-          if (c.name == "NO_NAME") {
-            c.name = receive_packet;
-            std::cout << "INFO: " << c.name << " connected...\n";
-            std::string send_packet = FMT("{}: connected...", c.name);
+          if (!c.verified[0]) {
+            if (receive_packet.find(',') ==
+                std::string_view::npos) { // Verify check fail
+              std::cerr << FMT("INFO: Verify check 1 failed...\n");
+              selector.remove(*c.socket);
+              c.socket->disconnect();
+              clients.erase(clients.begin() + i);
+              goto accept;
+            }
+            std::string verify =
+                receive_packet.substr(0, receive_packet.find(','));
+            std::string name =
+                receive_packet.substr(receive_packet.find(',') + 1);
+
+            c.name = name;
+
+            std::string send_packet = FMT("Verify 1 Success");
             s = c.socket->send(send_packet.c_str(), send_packet.size());
             if (s == sf::Socket::Status::Error) {
               err();
             }
+            print("INFO: Verify 1 send...\n");
+            c.verified[0] = true;
+          } else if (!c.verified[1]) {
+            if (receive_packet.find(',') ==
+                std::string_view::npos) { // Verify check fail
+              std::cerr << FMT("INFO: Verify check 2 failed...\n");
+              selector.remove(*c.socket);
+              c.socket->disconnect();
+              clients.erase(clients.begin() + i);
+              goto accept;
+            }
+            std::string verify =
+                receive_packet.substr(0, receive_packet.find(','));
+            std::string name =
+                receive_packet.substr(receive_packet.find(',') + 1);
 
+            if (c.name != name) {
+              c.name = name;
+            }
+
+            std::string send_packet = FMT("Verify 2 Success");
+            s = c.socket->send(send_packet.c_str(), send_packet.size());
+            if (s == sf::Socket::Status::Error) {
+              err();
+            }
+            c.verified[1] = true;
+            print("INFO: Client {} connected successfully!\n", c.name);
           } else {
             // send chat log to all clients
             for (auto &other : clients) {
@@ -90,7 +139,6 @@ int main(int argc, char *argv[]) {
                 err();
               }
             }
-
             std::cout << c.name << ": " << receive_packet << "\n";
           }
         }

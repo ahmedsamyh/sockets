@@ -21,6 +21,8 @@ int main(int argc, char *argv[]) {
   sf::TcpSocket server;
   sf::SocketSelector selector;
   std::string name{""};
+  bool verified[2]{false, false};
+  bool send_verified[2]{false, false};
 
   // graphical display things
   std::string chat_log{};
@@ -29,8 +31,8 @@ int main(int argc, char *argv[]) {
     Port_ip_writing,
     Connect_to_server,
     Name_writing,
+    Verify_1,
     Lobby,
-    Send_name_to_server
   };
   State state{State::Port_ip_writing};
 
@@ -40,7 +42,7 @@ int main(int argc, char *argv[]) {
   std::string port_ip_str{"127.0.0.1:8888"};
 
   // errors
-  bool server_connect_err{false};
+  std::string server_connect_err{};
 
   Data d;
   d.init(1280, 720, 1, "Client");
@@ -96,7 +98,7 @@ int main(int argc, char *argv[]) {
             static_cast<unsigned short>(std::stoi(port_ip_str.substr(colon_p)));
         ip = port_ip_str.substr(0, colon_p - 1);
         state = State::Connect_to_server;
-        server_connect_err = false;
+        server_connect_err.clear();
       }
     } break;
 
@@ -106,7 +108,7 @@ int main(int argc, char *argv[]) {
       s = server.connect(ip, port, sf::seconds(5.f));
       if (s != sf::Socket::Status::Done) {
         state = State::Port_ip_writing;
-        server_connect_err = true;
+        server_connect_err = "Failed to connect to server...";
       } else {
         selector.add(server);
         state = State::Name_writing;
@@ -115,19 +117,86 @@ int main(int argc, char *argv[]) {
 
     case State::Name_writing: {
       if (d.k_pressed(Key::Enter) && !name.empty()) {
-        state = State::Send_name_to_server;
+        state = State::Verify_1;
       }
     } break;
 
-    case State::Send_name_to_server: {
-      send_packet = name;
+    case State::Verify_1: {
+      if (!verified[0]) {
+        // send "Verify 1 {NAME}" to server if not already send
+        if (!send_verified[0]) {
+          send_packet = FMT("Verify 1,{}", name);
+          s = server.send(send_packet.c_str(), send_packet.size());
+          if (s == sf::Socket::Status::Error) {
+            err();
+          }
+          send_verified[0] = true;
+          print("INFO: Verify 1 send to server...\n");
+        }
+        // if it was already send, wait until server responds with "Verify 1
+        // Success"
+        else {
+          if (selector.wait(sf::seconds(0.01f))) {
+            if (selector.isReady(server)) {
+              receive_packet.resize(MAX_PACKET_SIZE);
+              size_t received{0};
+              s = server.receive((void *)receive_packet.c_str(),
+                                 MAX_PACKET_SIZE, received);
+              if (s == sf::Socket::Status::Error) {
+                err();
+              }
+              receive_packet.resize(received);
 
-      VAR(send_packet);
-      s = server.send(send_packet.c_str(), send_packet.size());
-      if (s == sf::Socket::Status::Error) {
-        err();
+              if (receive_packet == "Verify 1 Success") {
+                print("INFO: Verify 1 Success!\n");
+                verified[0] = true;
+              } else { // fail
+                server_connect_err = "Verify 1 failed...";
+                state = State::Port_ip_writing;
+              }
+            }
+          }
+        }
+      } else if (!verified[1]) {
+        // send "Verify 2 {NAME}" to server if not already send
+        if (!send_verified[1]) {
+          send_packet = FMT("Verify 2,{}", name);
+          s = server.send(send_packet.c_str(), send_packet.size());
+          if (s == sf::Socket::Status::Error) {
+            err();
+          }
+          send_verified[1] = true;
+          print("INFO: Verify 2 send to server...\n");
+        }
+        // if it was already send, wait until server responds with "Verify 1
+        // Success"
+        else {
+          print("INFO: Receiving until server responds...\n");
+          if (selector.wait(sf::seconds(0.01f))) {
+            if (selector.isReady(server)) {
+              receive_packet.resize(MAX_PACKET_SIZE);
+              size_t received{0};
+              s = server.receive((void *)receive_packet.c_str(),
+                                 MAX_PACKET_SIZE, received);
+              if (s == sf::Socket::Status::Error) {
+                err();
+              }
+              receive_packet.resize(received);
+
+              if (receive_packet == "Verify 2 Success") {
+                print("INFO: Verify 2 Success!\n");
+                verified[1] = true;
+              } else { // fail
+                server_connect_err = "Verify 2 failed...";
+                state = State::Port_ip_writing;
+              }
+            }
+          }
+        }
       }
-      state = State::Lobby;
+      if (verified[0] && verified[1]) {
+        state = State::Lobby;
+      }
     } break;
 
     case State::Lobby: {
@@ -146,8 +215,9 @@ int main(int argc, char *argv[]) {
           }
           receive_packet.resize(received);
 
-          chat_log += receive_packet + '\n';
-          std::cout << "SERVER: " << receive_packet << "\n";
+          if (receive_packet.find(':') != std::string::npos) {
+            chat_log += receive_packet + '\n';
+          }
         }
       }
 
@@ -171,7 +241,7 @@ int main(int argc, char *argv[]) {
     case State::Port_ip_writing: {
       ui.begin(d.ss() / 2.f);
 
-      if (server_connect_err) {
+      if (!server_connect_err.empty()) {
         ui.text("Couldn't connect to server...", TopCenter, DEFAULT_CHAR_SIZE,
                 sf::Color::Red);
       }
@@ -195,8 +265,8 @@ int main(int argc, char *argv[]) {
       ui.end();
     } break;
 
-    case State::Send_name_to_server: {
-      d.draw_text(d.ss() / 2.f, "Sending name to server...", CenterCenter);
+    case State::Verify_1: {
+      d.draw_text(d.ss() / 2.f, "Verifying...", CenterCenter);
     } break;
 
     case State::Lobby: {
