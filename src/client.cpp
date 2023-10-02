@@ -15,6 +15,7 @@ void err() {
 
 int main(int argc, char *argv[]) {
   //
+
   unsigned short port{8888};
   sf::IpAddress ip{"127.0.0.1"};
   sf::TcpSocket server;
@@ -77,6 +78,9 @@ int main(int argc, char *argv[]) {
     // update
     switch (state) {
     case State::Port_ip_writing: {
+      if (d.k_held(Key::LControl) && d.k_pressed(Key::V)) {
+        port_ip_str += static_cast<std::string>(sf::Clipboard::getString());
+      }
       if (d.k_pressed(Key::Enter) && !port_ip_str.empty()) {
         size_t colon_p = port_ip_str.find_last_of(':') + 1;
         port =
@@ -207,7 +211,6 @@ int main(int argc, char *argv[]) {
       ASSERT(0);
     } break;
     }
-
     // display
     d.display();
   }
