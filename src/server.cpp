@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
   //
   std::cout << std::unitbuf;
 
-  unsigned short port{8888};
+  unsigned short port{6969};
   sf::TcpListener listener;
   sf::SocketSelector l_selector;
   sf::SocketSelector selector;
@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
   }
   l_selector.add(listener);
 
-  std::cout << "INFO: Server started...\n";
+  print("INFO: Server started on port {}...\n", port);
   while (true) {
   accept:
     // accept clients

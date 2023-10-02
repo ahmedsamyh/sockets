@@ -16,7 +16,7 @@ void err() {
 int main(int argc, char *argv[]) {
   //
 
-  unsigned short port{8888};
+  unsigned short port{6969};
   sf::IpAddress ip{"127.0.0.1"};
   sf::TcpSocket server;
   sf::SocketSelector selector;
@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
   sf::Socket::Status s{};
   std::string receive_packet{};
   std::string send_packet{};
-  std::string port_ip_str{"127.0.0.1:8888"};
+  std::string port_ip_str{"127.0.0.1:6969"};
 
   // errors
   std::string server_connect_err{};
