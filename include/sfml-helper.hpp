@@ -11,6 +11,7 @@
 #include <iostream>
 #include <string>
 #include <unordered_map>
+#include <stdcpp.hpp>
 
 namespace fs = std::filesystem;
 
@@ -32,41 +33,6 @@ typedef std::string str;
 // macros ==================================================
 #define DEFAULT_FONT_NAME "res/font/IosevkaNerdFontMono-Regular.ttf"
 #define DEFAULT_CHAR_SIZE 32
-
-#define VAR(name) print(#name, ": ", name, "\n")
-#define VAR_STR(name) std::format("{}: {}", #name, name)
-#define NL() print("\n")
-#define ASSERT(condition)                                                      \
-  if (!(condition)) {                                                          \
-    PANIC(#condition);                                                         \
-  }
-#define ASSERT_MSG(condition, msg)                                             \
-  if (!(condition)) {                                                          \
-    PANIC(msg);                                                                \
-  }
-#define ERROR(...) PANIC("ERROR: ", __VA_ARGS__)
-#define FMT(str, ...) std::format((str), __VA_ARGS__)
-#define PANIC(...) panic(__FILE__, ":", __LINE__, ":", __VA_ARGS__)
-void panic();
-template <typename T, typename... Types> void panic(T arg, Types... args) {
-  std::cerr << arg;
-  panic(args...);
-}
-#define LOG(...) log(__VA_ARGS__)
-void log();
-template <typename T, typename... Types> void log(T arg, Types... args) {
-  std::cout << arg;
-  log(args...);
-}
-#define UNREACHABLE() PANIC("Uncreachable\n")
-#define UNIMPLEMENTED() PANIC(__func__, "() is unimplemented\n")
-#define WARNING(...) LOG("WARNING: ", __VA_ARGS__)
-void _print();
-template <typename T, typename... Types> void _print(T arg, Types... args) {
-  std::cout << arg;
-  _print(args...);
-}
-#define print(str, ...) _print(FMT(str, __VA_ARGS__))
 
 // data.dat ==================================================
 enum Data_type { None = -1, Font, Texture, Sound, Shader };
@@ -170,6 +136,10 @@ struct UI {
   bool btn(const std::string &str, const Align &align = TopLeft,
            size_t char_size = DEFAULT_CHAR_SIZE,
            sf::Color col = sf::Color::White);
+  bool btn_state(bool &state, const std::string &str,
+                 const Align &align = TopLeft,
+                 size_t char_size = DEFAULT_CHAR_SIZE,
+                 sf::Color col = sf::Color::White);
   float slider(float val, float min, float max, const std::string &text,
                const Align &align = TopLeft,
                size_t char_size = DEFAULT_CHAR_SIZE, float size = 100.f,
@@ -429,6 +399,7 @@ struct Data {
   bool m_held(MB btn);
   bool m_released(MB btn);
   sf::Vector2f &mpos();
+  void set_mpos(const sf::Vector2f &m);
   sf::Vector2f mpos_w();
   float mouse_scroll();
 
@@ -510,20 +481,6 @@ struct Text_box {
   void add_text(const std::string &txt, std::function<void()> func = nullptr);
 };
 
-// math -------------------------
-namespace math {
-#define PI 3.14159265359
-
-float randomf(const float min, const float max);
-int randomi(const float min, const float max);
-float rad2deg(const float rad);
-float deg2rad(const float deg);
-float map(float val, float min, float max, float from, float to);
-bool chance(float percent);
-bool rect_intersects_rect(const sf::FloatRect &r1, const sf::FloatRect &r2);
-bool rect_contains_rect(const sf::FloatRect &r1, const sf::FloatRect &r2);
-} // namespace math
-
 // Vector2f --------------------------------------------------
 namespace v2f {
 float dist(const sf::Vector2f &vec);
@@ -542,11 +499,9 @@ sf::Vector2f from_radians(float rad);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 #ifdef SFML_HELPER_IMPLEMENTATION
+#define STDCPP_IMPLEMENTATION
+#include <stdcpp.hpp>
 namespace sh {
-// macro functions
-void panic() { exit(1); }
-void log() {}
-void _print() {}
 
 // data.dat --------------------------------------------------
 void Data_chunk::free() {
@@ -584,7 +539,7 @@ std::vector<std::string> list_of_names_in_data() {
   std::ifstream ifs;
   std::vector<std::string> names;
   if (!fs::exists("data.dat")) {
-    ERROR("`data.dat` doesn't exist");
+    ERR("`data.dat` doesn't exist\n");
   }
   ifs.open("data.dat", std::ios::binary | std::ios::in);
   if (ifs.is_open()) {
@@ -629,7 +584,7 @@ std::vector<std::string> list_of_names_in_data() {
       }
     }
   } else {
-    ERROR("Could not open `data.dat` for input");
+    ERR("Could not open `data.dat` for input\n");
     return names;
   }
 
@@ -641,14 +596,14 @@ std::vector<Data_chunk> list_of_chunks_in_data() {
   std::vector<Data_chunk> chunks;
 
   if (!fs::exists("data.dat")) {
-    ERROR("`data.dat` doesn't exist");
+    ERR("`data.dat` doesn't exist\n");
   }
 
   std::ifstream ifs;
   ifs.open("data.dat", std::ios::binary);
 
   if (!ifs.is_open()) {
-    ERROR("Could not open `data.dat` for input");
+    ERR("Could not open `data.dat` for input\n");
     return chunks;
   }
 
@@ -714,7 +669,7 @@ bool remove_chunk_from_data(const std::string &_name) {
     ifs.seekg(0, std::ios::end);
     size_t previous_data_file_size = ifs.tellg();
     if (previous_data_file_size <= 0) {
-      ERROR("`data.dat` is empty!");
+      ERR("`data.dat` is empty!\n");
       return false;
     }
     previous_data_file = new char[previous_data_file_size];
@@ -825,16 +780,16 @@ bool remove_chunk_from_data(const std::string &_name) {
           return true;
           ofs.close();
         } else {
-          ERROR("Could not open `data.dat` for output");
+          ERR("Could not open `data.dat` for output\n");
           return false;
         }
       }
     }
 
-    ERROR(std::format("Could not find `{}` in `data.dat`", _name));
+    ERR("Could not find `{}` in `data.dat`\n", _name);
     return false;
   } else {
-    ERROR("Could not open `data.dat` for input");
+    ERR("Could not open `data.dat` for input\n");
     return false;
   }
 }
@@ -843,7 +798,7 @@ bool remove_all_chunks_from_data() {
   std::ofstream ofs;
   ofs.open("data.dat", std::ios::binary);
   if (!ofs.is_open()) {
-    ERROR("Could not open `data.dat` for output");
+    ERR("Could not open `data.dat` for output\n");
     return false;
   }
   WARNING("`data.dat` cleared\n");
@@ -875,7 +830,7 @@ bool write_chunk_to_data(const Data_type &type, const std::string &filename) {
 
     ifs.close();
   } else {
-    ERROR(std::format("Could not open `{}` for input", filename));
+    ERR("Could not open `{}` for input\n", filename);
     return false;
   }
 
@@ -917,7 +872,7 @@ bool write_chunk_to_data(const Data_type &type, const std::string &filename) {
     return true;
     ofs.close();
   } else {
-    ERROR("Could not open `data.dat` for output");
+    ERR("Could not open `data.dat` for output\n");
     return false;
   }
   return false;
@@ -943,7 +898,7 @@ bool read_chunk_from_data(Data_chunk &chunk, const std::string &name,
                           Data_type type) {
   auto chunks = list_of_chunks_in_data();
   if (chunks.empty()) {
-    ERROR("No chunk(s) found in `data.dat`");
+    ERR("No chunk(s) found in `data.dat`\n");
     return false;
   }
 
@@ -1003,7 +958,7 @@ bool read_chunk_from_data(Data_chunk &chunk, const std::string &name,
   }
 
   if (!found) {
-    ERROR(std::format("Could not find {} `{}` in `data.dat`", type_str, name));
+    ERR("Could not find {} `{}` in `data.dat`\n", type_str, name);
     return false;
   } else {
     // d_info(std::format("Successfully read {} `{}` ({}
@@ -1079,7 +1034,7 @@ bool Data::init(int s_w, int s_h, int scl, const std::string &_title) {
 
   // create render texture
   if (!ren_tex.create(width, height)) {
-    ERROR("Could not create render texture!");
+    ERR("Could not create render texture!\n");
     return false;
   }
 
@@ -1373,6 +1328,11 @@ bool Data::m_released(MB btn) {
 
 sf::Vector2f &Data::mpos() { return _mpos; }
 
+void Data::set_mpos(const sf::Vector2f &m) {
+  sf::Mouse::setPosition(sf::Vector2i(m), win);
+  _mpos = m;
+}
+
 sf::Vector2f Data::mpos_w() { return scr_to_wrld(mpos()); }
 
 float Data::mouse_scroll() { return _mouse_scroll; }
@@ -1588,7 +1548,7 @@ bool Resource_manager::load_all_textures() {
   std::vector<Data_chunk> chunks = list_of_chunks_in_data();
 
   if (chunks.empty()) {
-    ERROR("No chunk(s) found in `data.dat`");
+    ERR("No chunk(s) found in `data.dat`\n");
     return false;
   }
 
@@ -1605,7 +1565,7 @@ bool Resource_manager::load_all_textures() {
   for (auto &ch : texture_chunks) {
     sf::Texture tex;
     if (!tex.loadFromMemory(ch.data, ch.data_size)) {
-      ERROR(std::format("Could not load texture data `{}`", ch.name));
+      ERR("Could not load texture data `{}`\n", ch.name);
       return false;
     }
     textures[ch.name] = tex;
@@ -1619,7 +1579,7 @@ bool Resource_manager::load_all_fonts() {
   std::vector<Data_chunk> chunks = list_of_chunks_in_data();
 
   if (chunks.empty()) {
-    ERROR("No chunk(s) found in `data.dat`");
+    ERR("No chunk(s) found in `data.dat`\n");
     return false;
   }
 
@@ -1636,7 +1596,7 @@ bool Resource_manager::load_all_fonts() {
   for (auto &ch : font_chunks) {
     sf::Font font;
     if (!font.loadFromMemory(ch.data, ch.data_size)) {
-      ERROR(std::format("Could not load font data `{}`", ch.name));
+      ERR("Could not load font data `{}`\n", ch.name);
       return false;
     }
     fonts[ch.name] = font;
@@ -1650,7 +1610,7 @@ sf::Font &Resource_manager::load_font(const std::string &filename) {
   std::vector<Data_chunk> chunks = list_of_chunks_in_data();
 
   if (chunks.empty()) {
-    ERROR("No chunk(s) found in `data.dat`");
+    ERR("No chunk(s) found in `data.dat`\n");
     exit(1);
   }
 
@@ -1664,14 +1624,14 @@ sf::Font &Resource_manager::load_font(const std::string &filename) {
   }
 
   if (font_chunks.empty()) { // couldnt find wanted font
-    ERROR(FMT("Could not find font `{}`", filename));
+    ERR("Could not find font `{}`\n", filename);
   }
 
   // loading font
   sf::Font font;
   auto &ch = font_chunks.back();
   if (!font.loadFromMemory(ch.data, ch.data_size)) {
-    ERROR(std::format("Could not load font data `{}`", ch.name));
+    ERR("Could not load font data `{}`\n", ch.name);
     exit(1);
   }
   fonts[ch.name] = font;
@@ -1683,7 +1643,7 @@ sf::Font &Resource_manager::load_font(const std::string &filename) {
 sf::Texture &Resource_manager::get_texture(const std::string &filename) {
   // return the texture if it already exists
   if (!textures.contains(filename)) {
-    ERROR(std::format("the texture `{} doesn't exist!`", filename));
+    ERR("the texture `{} doesn't exist!`\n", filename);
   }
 
   return textures.at(filename);
@@ -1692,8 +1652,7 @@ sf::Texture &Resource_manager::get_texture(const std::string &filename) {
 sf::Font &Resource_manager::get_font(const std::string &filename) {
   // return the font if it already exists
   if (!fonts.contains(filename)) {
-    ERROR(std::format("the font `{} doesn't exist!`", filename));
-    exit(1);
+    ERR("the font `{} doesn't exist!`\n", filename);
   }
 
   return fonts.at(filename);
@@ -1808,9 +1767,98 @@ bool UI::btn(const std::string &str, const Align &align, size_t char_size,
   sf::Color fill_col = col;
   fill_col.a = 0;
   if (active_id == id) {
-    fill_col.a = 100;
-  } else if (hovering) {
-    fill_col.a = 50;
+    fill_col.a += 100;
+  }
+  if (hovering) {
+    fill_col.a += 50;
+  }
+
+  // draw rect
+  d_ptr->draw_rect(pos - sf::Vector2f{padding.x / 2.f, 0.f}, size, TopLeft,
+                   fill_col);
+  // draw text
+  d_ptr->draw_text(pos, str, TopLeft, (int)char_size);
+
+  l->push_widget(size_to_push);
+
+  return click;
+}
+
+bool UI::btn_state(bool &state, const std::string &str, const Align &align,
+                   size_t char_size, sf::Color col) {
+  Layout *l = top_layout();
+  ASSERT(l != nullptr);
+  int id = current_id++;
+
+  sf::Vector2f padding{10.f, 10.f};
+  sf::Vector2f pos = l->available_pos();
+  sf::Vector2f size = d_ptr->get_text_size(str, char_size, padding);
+  sf::Vector2f size_to_push{size + padding};
+
+  switch (align) {
+  case TopLeft:
+    break;
+  case TopCenter:
+    pos.x -= size.x / 2.f;
+    size_to_push.x /= 2.f;
+    break;
+  case TopRight:
+    pos.x -= size.x;
+    size_to_push.x = 0.f;
+    break;
+  case CenterLeft:
+    pos.y -= size.y / 2.f;
+    // size_to_push.y /= 2.f;
+    break;
+  case CenterCenter:
+    pos -= size / 2.f;
+    // size_to_push /= 2.f;
+    break;
+  case CenterRight:
+    pos.y -= size.y / 2.f;
+    pos.x -= size.x;
+    size_to_push.x = 0.f;
+    break;
+  case BottomLeft:
+    pos.y -= size.y;
+    break;
+  case BottomCenter:
+    pos.y -= size.y;
+    pos.x -= size.x / 2.f;
+    size_to_push.x /= 2.f;
+    break;
+  case BottomRight:
+    pos.y -= size.y;
+    pos.x -= size.x;
+    size_to_push.x = 0.f;
+    break;
+  default:
+    ASSERT_MSG(0, "Unreachable state reached in `draw_text`");
+  }
+
+  bool click = state;
+  sf::FloatRect btn_rect{pos, size};
+  bool hovering = btn_rect.contains(d_ptr->mpos());
+  if (active_id == id) {
+    if (d_ptr->m_released(MB::Left)) {
+      active_id = -1;
+      if (hovering) {
+        state = !state;
+      }
+    }
+  } else {
+    if (hovering && d_ptr->m_pressed(MB::Left)) {
+      active_id = (int)id;
+    }
+  }
+
+  sf::Color fill_col = col;
+  fill_col.a = 0;
+  if (click) {
+    fill_col.a += 100;
+  }
+  if (hovering) {
+    fill_col.a += 50;
   }
 
   // draw rect
@@ -2272,55 +2320,6 @@ void Text_box::add_text(const std::string &txt, std::function<void()> func) {
   //
   text_buffer.push_back({txt, func, false});
 }
-
-// math -------------------------
-namespace math {
-#define PI 3.14159265359
-
-float randomf(const float min, const float max) {
-  return (float(rand()) / float(RAND_MAX) * (max - min)) + min;
-}
-int randomi(const float min, const float max) {
-  return int((float(rand()) / float(RAND_MAX) * (max - min)) + min);
-}
-
-float rad2deg(const float rad) { return float((rad / PI) * 180.f); }
-
-float deg2rad(const float deg) { return float((deg / 180) * PI); }
-
-float map(float val, float min, float max, float from, float to) {
-  float normalized = val / (max - min);
-  return normalized * (to - from) + from;
-}
-
-bool chance(float percent) {
-  //
-  ASSERT_MSG(0.f <= percent && percent <= 100.f,
-             "percent should be between 0.f and 100.f");
-
-  return math::randomf(0.f, 100.f) <= percent;
-}
-
-bool rect_intersects_rect(const sf::FloatRect &r1, const sf::FloatRect &r2) {
-  ///
-  float r1_right = r1.left + r1.width;
-  float r2_right = r2.left + r2.width;
-  float r1_bottom = r1.top + r1.height;
-  float r2_bottom = r2.top + r2.height;
-  return (r1.left <= r2_right && r1_right >= r2.left && r1.top <= r2_bottom &&
-          r1_bottom >= r2.top);
-}
-
-bool rect_contains_rect(const sf::FloatRect &r1, const sf::FloatRect &r2) {
-  float r1_right = r1.left + r1.width;
-  float r2_right = r2.left + r2.width;
-  float r1_bottom = r1.top + r1.height;
-  float r2_bottom = r2.top + r2.height;
-  return r2.left >= r1.left && r2_right <= r1_right && r2.top >= r1.top &&
-         r2_bottom <= r1_bottom;
-}
-
-} // namespace math
 
 // Vector2f --------------------------------------------------
 namespace v2f {
